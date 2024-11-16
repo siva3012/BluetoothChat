@@ -1,8 +1,6 @@
 package com.example.bluetooth.ui.theme
 
-import android.os.Message
-
 interface MessageReceived {
-    fun MessageReceived(message: String)
-    fun connected()
+    fun MessageReceived(message: String,macAddress:String)
+    fun connected(macAddress:String,openScreen :Boolean)
 }

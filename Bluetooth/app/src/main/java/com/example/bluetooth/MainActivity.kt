@@ -8,13 +8,11 @@ import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -27,22 +25,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import com.example.bluetooth.bluetooth.BluetoothConnection
+import com.example.bluetooth.bluetooth.BluetoothServerService
 import com.example.bluetooth.ui.theme.BluetoothTheme
 import com.example.bluetooth.ui.theme.DisplayViewModel
 import com.example.bluetooth.ui.theme.MessageReceived
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-
+import android.content.IntentFilter as IntentFilter1
 
 class MainActivity : ComponentActivity(),MessageReceived {
     private val REQUEST_ENABLE_BT = 2
     private val PERMISSION_REQUEST_CODE = 1
     private var bluetoothAdapter: BluetoothAdapter? = null
     var selecteddevice by mutableStateOf<BluetoothDevice?>(null)
-    val viewmodel: DisplayViewModel by viewModels()
-    val bluetoothConnection = BluetoothConnection.getInstance()
+    var viewmodel: DisplayViewModel ? =null
     private lateinit var navController: NavHostController
 
 
@@ -70,13 +67,20 @@ class MainActivity : ComponentActivity(),MessageReceived {
     @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+//        val serviceIntent = Intent(this, BluetoothServerService::class.java)
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//            this.startForegroundService(serviceIntent)
+//        } else {
+//            this.startService(serviceIntent)
+//        }
 //        CoroutineScope(Dispatchers.IO).launch {
 //            bluetoothConnection.startServer()
 //        }
 //        bluetoothConnection.setOnDataReceivedListener { data ->
 //            Log.d("Received message from ", "${data}")
 //        }
-        bluetoothConnection.registerMessageReceiver(this)
+        viewmodel = DisplayViewModel(this)
+        viewmodel?.registerMessageReceived(this)
         setContent {
             BluetoothTheme {
                 Surface(
@@ -104,12 +108,12 @@ class MainActivity : ComponentActivity(),MessageReceived {
                         startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
                     } else {
                         Log.d("Atactivity", "kjhjh")
-                        registerReceiver(receiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
+                        registerReceiver(receiver, IntentFilter1(BluetoothDevice.ACTION_FOUND))
                         bluetoothAdapter!!.startDiscovery()
                         pairdevice()
                     }
                     navController = rememberNavController()
-                    Navigation(navController = navController,viewmodel)
+                    Navigation(navController = navController, viewmodel!!)
                 }
             }
         }
@@ -123,7 +127,7 @@ class MainActivity : ComponentActivity(),MessageReceived {
                 // Bluetooth has been enabled, start discovery
                 Log.d("at", "jhj")
                 pairdevice()
-                registerReceiver(receiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
+                registerReceiver(receiver, IntentFilter1(BluetoothDevice.ACTION_FOUND))
                 bluetoothAdapter!!.startDiscovery()
 
             } else {
@@ -137,13 +141,19 @@ class MainActivity : ComponentActivity(),MessageReceived {
         super.onResume()
         Log.d("Iam at resume", "Resume")
         // Register the receiver when the activity is resumed
-        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+        val filter = IntentFilter1(BluetoothDevice.ACTION_FOUND)
         registerReceiver(receiver, filter)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-
+        for ((key, value) in BluetoothServerService.getBluetoothServerServiceInstance().connectionMap) {
+            Log.d("MapLog", "Key: $key, Value: ${value.socket.isConnected}")
+            if (value.socket.isConnected && value.AddedThroughServer==false){
+                value.socket.close()
+                BluetoothServerService.getBluetoothServerServiceInstance().connectionMap.remove(key)
+            }
+        }
         // Don't forget to unregister the ACTION_FOUND receiver.
         unregisterReceiver(receiver)
     }
@@ -154,23 +164,27 @@ class MainActivity : ComponentActivity(),MessageReceived {
         pairedDevices?.forEach { device ->
             Log.w("device mac", "${device.address}")
             if (device.name != null) {
-                viewmodel.addvalues(device)
+                viewmodel?.addvalues(device)
             }
         }
 
     }
 
-    override fun MessageReceived(message: String) {
+    override fun MessageReceived(message: String,macAddress:String) {
         Log.d("MainActivity", "Received message from connection ")
-        viewmodel.ReceiveMessage(message)
+        viewmodel?.ReceiveMessage(message)
     }
 
-    override fun connected() {
+    override fun connected(macAddress: String,openScreen :Boolean) {
+        viewmodel?.connected(macAddress)
         Log.d("MainActivity", "Device is Connected")
-        CoroutineScope(Dispatchers.Main).launch {
-            navController.navigate("ChatScreen")
+        if (openScreen) {
+            CoroutineScope(Dispatchers.Main).launch {
+                navController.navigate("ChatScreen")
+            }
         }
     }
+
 
 }
 @Composable

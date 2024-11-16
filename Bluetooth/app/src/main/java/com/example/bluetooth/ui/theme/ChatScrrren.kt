@@ -23,9 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -40,21 +38,30 @@ fun ChatScreen(displayViewModel: DisplayViewModel){
                 .background(color = Color.Green)
                 .padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = "Bluetooth Chat with ${displayViewModel.connectedDevice.value}", style = TextStyle(textAlign = TextAlign.Center))
+            Row {
+                Text(
+                    text = "Back"
+                )
+                Spacer(Modifier.weight(0.5f))
+                Text(
+                    text = "Bluetooth Chat with ${displayViewModel.connectedDeviceAddress.value}",
+                    style = TextStyle(textAlign = TextAlign.Center)
+                )
+            }
         }
         LazyColumn{
-            items(displayViewModel.messageList.value){
+            items(displayViewModel.chatData.value){
                 Log.d("ChatScreen","${it.message}")
-                if (it.state==messageType.Received){
+                if (it.MessageType==messageType.Received){
                     Box(modifier = Modifier
-                        .background(color = Color.Gray)
-                        .fillMaxWidth() ){
+                        .background(color = Color.White)
+                        .fillMaxWidth().padding(10.dp) ){
                         Text(text = it.message)
                     }
                 }
-               else if (it.state==messageType.Sent){
+               else if (it.MessageType==messageType.Sent){
                     Box(modifier = Modifier
-                        .background(color = Color.Red)
+                        .background(color = Color.Green)
                         .fillMaxWidth() ){
                         Row {
                             Spacer(modifier = Modifier.weight(1f))
@@ -68,7 +75,7 @@ fun ChatScreen(displayViewModel: DisplayViewModel){
         Row(modifier= Modifier.padding(10.dp)) {
             TextField(value = sent.value , onValueChange = {sent.value=it}, modifier = Modifier.weight(1f))
             Button(onClick = {
-                displayViewModel.sendMessage(sent.value)
+                displayViewModel.sendMessageAddToDB(sent.value)
             }) {
                 Text(text = "Send")
             }

@@ -5,6 +5,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.bluetooth.BluetoothSocket
 import android.content.Intent
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
 import android.os.Build
@@ -15,8 +16,25 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+data class AddedBY(
+    val socket: BluetoothSocket,
+    val AddedThroughServer :Boolean
+)
+
 class BluetoothServerService : Service() {
-    val bluetoothConnection =BluetoothConnection.getInstance()
+    val bluetoothConnection =BluetoothConnection()
+    val connectionMap : MutableMap<String, AddedBY> = mutableMapOf()
+
+    companion object{
+        @Volatile
+        var instance : BluetoothServerService? =null
+
+        fun getBluetoothServerServiceInstance(): BluetoothServerService {
+            return instance ?: synchronized(this) {
+                instance ?: BluetoothServerService().also { instance = it }
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -58,7 +76,7 @@ class BluetoothServerService : Service() {
     }
     fun startBluetoothServer(){
         CoroutineScope(Dispatchers.IO).launch {
-            bluetoothConnection.startServer()
+            bluetoothConnection.startServer(this@BluetoothServerService)
         }
         bluetoothConnection.setOnDataReceivedListener { data ->
             Log.d("Received message from ", "${data}")
